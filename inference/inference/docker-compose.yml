@@ -1,0 +1,70 @@
+services:
+  langchain:
+    build:
+      context: ./services/langchain_server
+      dockerfile: ../common/Dockerfile
+    container_name: langchain
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+    ports:
+      - "8001:8001"
+    command: uvicorn app:app --host 0.0.0.0 --port 8001 --reload
+
+  tts:
+    build:
+      context: ./services/tts_server
+      dockerfile: ../common/Dockerfile
+    container_name: tts
+    ports:
+      - "8002:8002"
+    command: uvicorn app:app --host 0.0.0.0 --port 8002 --reload
+
+  stt:
+    build:
+      context: ./services/stt_server
+      dockerfile: ../common/Dockerfile
+    container_name: stt
+    ports:
+      - "8003:8003"
+    command: uvicorn app:app --host 0.0.0.0 --port 8003 --reload
+
+  ai:
+    build:
+      context: ./services/ai_server
+      dockerfile: ../common/Dockerfile
+    container_name: ai
+    volumes:
+      - ./artifacts:/app/artifacts
+    ports:
+      - "8004:8004"
+    command: uvicorn app:app --host 0.0.0.0 --port 8004 --reload
+
+  api:
+    build:
+      context: ./services/api_server
+      dockerfile: ../common/Dockerfile
+    container_name: api
+    environment:
+      - LANGCHAIN_URL=http://langchain:8001
+      - TTS_URL=http://tts:8002
+      - STT_URL=http://stt:8003
+      - ML_URL=http://ai:8004
+    ports:
+      - "8000:8000"
+    depends_on:
+      - langchain
+      - tts
+      - stt
+      - ml
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    container_name: label-studio
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./label_studio_data:/label_studio/data
+    environment:
+      - LABEL_STUDIO_USERNAME=${LABEL_STUDIO_USERNAME}
